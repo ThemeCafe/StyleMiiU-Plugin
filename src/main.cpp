@@ -179,6 +179,13 @@ void shuffle_themes_changed_callback(wupsext::ConfigItemBooleanVarContext &item)
     need_to_restart = true;
 }
 
+void mashup_themes_changed_callback(wupsext::ConfigItemBooleanVarContext &item) {
+    DEBUG_FUNCTION_LINE_VERBOSE("New value in %s changed: %s",
+                                item.identifier.data(),
+                                item.variable ? "true" : "false");
+    need_to_restart = true;
+}
+
 void theme_changed_callback(wupsext::ConfigItemThemeContext &item) {
     DEBUG_FUNCTION_LINE_VERBOSE("New value in %s changed: %s",
                                 item.identifier.data(),
@@ -213,7 +220,8 @@ try {
 
     root.add(BoolItem::Create(KEY_MASHUP_THEMES,
                               "Mashup themes",
-                              gMashupThemes));
+                              gMashupThemes,
+                              mashup_themes_changed_callback));
 
     // Show last loaded theme
     if (!gLoadedTheme.empty())
