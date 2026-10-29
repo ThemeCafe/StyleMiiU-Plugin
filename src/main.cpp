@@ -179,6 +179,13 @@ void shuffle_themes_changed_callback(wupsext::ConfigItemBooleanVarContext &item)
     need_to_restart = true;
 }
 
+void mashup_themes_changed_callback(wupsext::ConfigItemBooleanVarContext &item) {
+    DEBUG_FUNCTION_LINE_VERBOSE("New value in %s changed: %s",
+                                item.identifier.data(),
+                                item.variable ? "true" : "false");
+    need_to_restart = true;
+}
+
 void theme_changed_callback(wupsext::ConfigItemThemeContext &item) {
     DEBUG_FUNCTION_LINE_VERBOSE("New value in %s changed: %s",
                                 item.identifier.data(),
@@ -213,7 +220,8 @@ try {
 
     root.add(BoolItem::Create(KEY_MASHUP_THEMES,
                               "Mashup themes",
-                              gMashupThemes));
+                              gMashupThemes,
+                              mashup_themes_changed_callback));
 
     // Show last loaded theme
     if (!gLoadedTheme.empty())
@@ -323,9 +331,41 @@ void ConfigMenuClosedCallback() {
                                 err);
     }
 
+    /*
+     * Special restart conditions, when shuffle is enabled:
+     * 1. If the current theme was disabled.
+     * 2. If no theme is loaded, and at least one theme is enabled.
+     */
+    if (gShuffleThemes) {
 
-    if(need_to_restart && is_wiiu_menu)
-    {
+        // Case 1: if current theme was disabled.
+        if (!gLoadedTheme.empty() &&
+            !gEnabledThemes.contains(gLoadedTheme))
+            need_to_restart = true;
+
+        // Handle mashups too: if any component of a mashup is disabled, gotta restart.
+        if (!gLoadedMenTheme.empty() &&
+            !gEnabledThemes.contains(gLoadedMenTheme))
+            need_to_restart = true;
+
+        if (!gLoadedMen2Theme.empty() &&
+            !gEnabledThemes.contains(gLoadedMen2Theme))
+            need_to_restart = true;
+
+        if (!gLoadedCafeBaristaTheme.empty() &&
+            !gEnabledThemes.contains(gLoadedCafeBaristaTheme))
+            need_to_restart = true;
+
+        // Case 2: no theme was loaded, now at least one theme is enabled
+        if (!gEnabledThemes.empty() &&
+            gLoadedTheme.empty() &&
+            gLoadedMenTheme.empty() &&
+            gLoadedMen2Theme.empty() &&
+            gLoadedCafeBaristaTheme.empty())
+            need_to_restart = true;
+    }
+
+    if(need_to_restart && is_wiiu_menu) {
         SYSLaunchMenu();
         need_to_restart = false;
     }
