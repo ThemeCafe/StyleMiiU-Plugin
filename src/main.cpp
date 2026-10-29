@@ -1,6 +1,6 @@
 #include "globals.h"
 #include "utils/logger.h"
-#include <themeSelector.h>
+#include "themeSelector.h"
 #include <utils/StringTools.h>
 
 #include <notifications/notifications.h>
@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <array>
 #include <filesystem>
+#include <flat_map>
 #include <functional>
 #include <random>
 #include <ranges>
@@ -410,25 +411,59 @@ DEINITIALIZE_PLUGIN() {
     NotificationModule_DeInitLibrary();
 }
 
-void
+enum SearchType : unsigned {
+    SearchMen         = 1u << 0u,
+    SearchMen2        = 1u << 1u,
+    SearchCafeBarista = 1u << 2u,
+
+    SearchAll = SearchMen | SearchMen2 | SearchCafeBarista
+};
+
+struct SearchResult {
+    std::optional<std::filesystem::path> menPack;
+    std::optional<std::filesystem::path> men2Pack;
+    std::optional<std::filesystem::path> cafeBarista;
+    std::optional<std::flat_set<std::filesystem::path>> bfstmSet;
+};
+
+SearchResult
 SearchThemeFiles(const std::filesystem::path &themePath,
-                 std::filesystem::path &outMenPack,
-                 std::filesystem::path &outMen2Pack,
-                 std::filesystem::path &outCafeBarista)
-try {
-    for (auto &entry : std::filesystem::recursive_directory_iterator{themePath}) {
-        if (!entry.is_regular_file())
-            continue;
-        auto filename = entry.path().filename();
-        if (outMenPack.empty() && IgnoreCaseEqual(filename, "Men.pack"))
-            outMenPack = entry.path();
-        if (outMen2Pack.empty() && IgnoreCaseEqual(filename, "Men2.pack"))
-            outMen2Pack = entry.path();
-        if (outCafeBarista.empty() && IgnoreCaseEqual(filename, "cafe_barista_men.bfsar"))
-            outCafeBarista = entry.path();
+                 unsigned flags)
+{
+    SearchResult result;
+    try {
+        for (auto &entry : std::filesystem::recursive_directory_iterator{themePath}) {
+            if (!entry.is_regular_file())
+                continue;
+            auto path = entry.path();
+            auto filename = path.filename();
+
+            if ((flags & SearchMen) &&
+                !result.menPack &&
+                IgnoreCaseEqual(filename, "Men.pack"))
+                result.menPack = path;
+
+            if ((flags & SearchMen2) &&
+                !result.men2Pack &&
+                IgnoreCaseEqual(filename, "Men2.pack"))
+                result.men2Pack = path;
+
+            if ((flags & SearchCafeBarista) &&
+                !result.cafeBarista &&
+                IgnoreCaseEqual(filename, "cafe_barista_men.bfsar"))
+                result.cafeBarista = path;
+
+            if ((flags & SearchCafeBarista) &&
+                IgnoreCaseEqual(filename.extension(), ".bfstm")) {
+                if (!result.bfstmSet)
+                    result.bfstmSet.emplace();
+                result.bfstmSet->insert(path);
+            }
+        }
     }
+    catch (...) {}
+    return result;
 }
-catch (...) {}
 
 void HandleThemes() {
     gLoadedTheme.clear();
@@ -447,68 +482,61 @@ void HandleThemes() {
     bool success = false;
 
     std::filesystem::path menPackPath, men2PackPath, cafeBaristaPath, contentPath;
+    std::flat_set<std::filesystem::path> bfstmSet;
 
     if (gMashupThemes && gShuffleThemes) {
-        std::filesystem::path tempMenPack, tempMen2Pack, tempCafeBarista;
 
         int attempts = 0;
         const int maxAttempts = gEnabledThemes.size() * 2;
 
+        // Find a Men.pack
         while (menPackPath.empty() && attempts < maxAttempts) {
             auto randomTheme = get_random_item(gEnabledThemes);
             auto themePath = theme_directory_path / randomTheme;
 
-            tempMenPack.clear();
-            tempMen2Pack.clear();
-            tempCafeBarista.clear();
-
-            SearchThemeFiles(themePath, tempMenPack, tempMen2Pack, tempCafeBarista);
-
-            if (!tempMenPack.empty()) {
-                menPackPath = tempMenPack;
+            auto res = SearchThemeFiles(themePath, SearchMen);
+            if (res.menPack) {
+                menPackPath = std::move(*res.menPack);
                 gLoadedMenTheme = randomTheme;
                 break;
             }
             attempts++;
         }
 
+        // Find a Men2.pack
         attempts = 0;
         while (men2PackPath.empty() && attempts < maxAttempts) {
             auto randomTheme = get_random_item(gEnabledThemes);
             auto themePath = theme_directory_path / randomTheme;
 
-            tempMenPack.clear();
-            tempMen2Pack.clear();
-            tempCafeBarista.clear();
-
-            SearchThemeFiles(themePath, tempMenPack, tempMen2Pack, tempCafeBarista);
-
-            if (!tempMen2Pack.empty()) {
-                men2PackPath = tempMen2Pack;
+            auto res = SearchThemeFiles(themePath, SearchMen2);
+            if (res.men2Pack) {
+                men2PackPath = std::move(*res.men2Pack);
                 gLoadedMen2Theme = randomTheme;
                 break;
             }
             attempts++;
         }
 
+        // Find a cafe_barista_men.bfsar, and .bfstm files.
         attempts = 0;
         while (cafeBaristaPath.empty() && attempts < maxAttempts) {
             auto randomTheme = get_random_item(gEnabledThemes);
             auto themePath = theme_directory_path / randomTheme;
 
-            tempMenPack.clear();
-            tempMen2Pack.clear();
-            tempCafeBarista.clear();
-
-            SearchThemeFiles(themePath, tempMenPack, tempMen2Pack, tempCafeBarista);
-
-            if (!tempCafeBarista.empty()) {
-                cafeBaristaPath = tempCafeBarista;
-                gLoadedCafeBaristaTheme = randomTheme;
+            auto res = SearchThemeFiles(themePath, SearchCafeBarista);
+            if (res.cafeBarista || res.bfstmSet) {
+                if (res.bfstmSet)
+                    bfstmSet = std::move(*res.bfstmSet);
+                if (res.cafeBarista) {
+                    cafeBaristaPath = std::move(*res.cafeBarista);
+                    gLoadedCafeBaristaTheme = randomTheme;
+                }
                 break;
             }
             attempts++;
         }
+
         contentPath = theme_directory_path / (gLoadedMenTheme + "/content");
         if (!exists(contentPath))
             contentPath.clear();
@@ -521,7 +549,16 @@ void HandleThemes() {
 
         auto currentThemePath = theme_directory_path / gLoadedTheme;
 
-        SearchThemeFiles(currentThemePath, menPackPath, men2PackPath, cafeBaristaPath);
+        auto [newMen, newMen2, newCafeBarista, newBfstmSet] =
+            SearchThemeFiles(currentThemePath, SearchAll);
+        if (newMen)
+            menPackPath = std::move(*newMen);
+        if (newMen2)
+            men2PackPath = std::move(*newMen2);
+        if (newCafeBarista)
+            cafeBaristaPath = std::move(*newCafeBarista);
+        if (newBfstmSet)
+            bfstmSet = std::move(*newBfstmSet);
 
         contentPath = currentThemePath / "content";
         if (!exists(contentPath))
@@ -531,8 +568,13 @@ void HandleThemes() {
     if (!menPackPath.empty()     ||
         !men2PackPath.empty()    ||
         !cafeBaristaPath.empty() ||
+        !bfstmSet.empty()        ||
         !contentPath.empty()) {
-        success = ReplaceContent(menPackPath, men2PackPath, cafeBaristaPath, contentPath);
+        success = ReplaceContent(menPackPath,
+                                 men2PackPath,
+                                 cafeBaristaPath,
+                                 contentPath,
+                                 bfstmSet);
     }
 
     if (success && gShowNotification){

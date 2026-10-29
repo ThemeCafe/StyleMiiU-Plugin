@@ -1,9 +1,11 @@
 #pragma once
 
-#include <string>
+#include <filesystem>
+#include <flat_set>
 
 bool
-ReplaceContent(const std::string& men,
-               const std::string& men2,
-               const std::string& cafeBarista,
-               const std::string& contentExtraPath);
+ReplaceContent(const std::filesystem::path& men,
+               const std::filesystem::path& men2,
+               const std::filesystem::path& cafeBarista,
+               const std::filesystem::path& contentExtraPath,
+               const std::flat_set<std::filesystem::path>& bfstmSet);
