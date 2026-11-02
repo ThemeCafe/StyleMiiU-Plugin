@@ -1,9 +1,12 @@
+[submodule "external/cafe_glyphs"]
+	path = external/cafe_glyphs
+	url = https://github.com/dkosmari/cafe_glyphs.git
 [submodule "external/libcontentredirection"]
 	path = external/libcontentredirection
 	url = https://github.com/wiiu-env/libcontentredirection.git
-[submodule "external/WiiUPluginSystem"]
-	path = external/WiiUPluginSystem
-	url = https://github.com/wiiu-env/WiiUPluginSystem.git
 [submodule "external/libnotifications"]
 	path = external/libnotifications
 	url = https://github.com/wiiu-env/libnotifications.git
+[submodule "external/WiiUPluginSystem"]
+	path = external/WiiUPluginSystem
+	url = https://github.com/wiiu-env/WiiUPluginSystem.git
