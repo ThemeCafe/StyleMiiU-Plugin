@@ -1121,7 +1121,8 @@ DEINITIALIZE_PLUGIN()
     NotificationModule_DeInitLibrary();
 }
 
-ON_APPLICATION_START() {
+ON_APPLICATION_START()
+{
     initLogging();
 
     if (CalledFromWiiUMenu()) {
@@ -1131,7 +1132,8 @@ ON_APPLICATION_START() {
     }
 }
 
-ON_APPLICATION_ENDS() {
+ON_APPLICATION_ENDS()
+{
     gFontStdBlob.reset();
     gLoadedFont.clear();
 
