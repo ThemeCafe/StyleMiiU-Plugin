@@ -292,7 +292,7 @@ namespace {
             return {};
 
         // Special case: when a theme intends to use the original Cafe font.
-        if (fontName == "CafeStd") {
+        if (utils::IgnoreCaseEqual(fontName, "CafeStd")) {
             DEBUG_FUNCTION_LINE_INFO("Requested CafeStd font.");
             gLoadedFont = fontName;
             return {};
@@ -610,6 +610,8 @@ namespace {
                                 while (f.gets(line)) {
                                     auto name = StripEOL(line);
                                     if (gKnownFonts && gKnownFonts->contains(name))
+                                        candidates.insert(name);
+                                    if (utils::IgnoreCaseEqual(name, "CafeStd"))
                                         candidates.insert(name);
                                 }
                             }
