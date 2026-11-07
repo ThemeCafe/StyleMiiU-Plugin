@@ -57,6 +57,7 @@ namespace {
 
     using SortedPathSet = std::flat_set<std::filesystem::path, utils::IgnoreCaseLess>;
 
+    // NOTE: Duplicated font names are ignored.
     using FontNamePathMap = std::flat_map<std::filesystem::path,
                                           std::filesystem::path,
                                           utils::IgnoreCaseLess>;
@@ -116,7 +117,7 @@ namespace {
     CalledFromWiiUMenuSWKBD()
         noexcept;
 
-    template<std::ranges::forward_range R>
+    template <std::ranges::forward_range R>
     std::ranges::range_value_t<R>
     GetRandomItem(R&& input);
 
@@ -126,7 +127,7 @@ namespace {
     bool
     IsTTF(const std::filesystem::path& path);
 
-    template<std::ranges::forward_range R>
+    template <std::ranges::forward_range R>
     std::string
     JoinPathSet(R&& input,
                 bool shuffle);
@@ -135,12 +136,12 @@ namespace {
     LoadFont(const std::filesystem::path& fontName)
         noexcept;
 
-    template<typename T>
+    template <typename T>
     bool
     LoadVar(const char* key,
             T& var);
 
-    template<typename T>
+    template <typename T>
     bool
     LoadVar(const char* key,
             T& var,
@@ -181,7 +182,7 @@ namespace {
     std::unordered_set<std::filesystem::path>
     SplitPathSet(const std::string& input);
 
-    template<typename T>
+    template <typename T>
     void
     StoreVar(const char* key,
              const T& var);
@@ -229,7 +230,7 @@ namespace {
         return "MenSwkbdCalculator_Create"sv == th_name;
     }
 
-    template<std::ranges::forward_range R>
+    template <std::ranges::forward_range R>
     std::ranges::range_value_t<R>
     GetRandomItem(R&& input)
     {
@@ -263,7 +264,7 @@ namespace {
         return utils::IgnoreCaseEqual(path.extension(), ".ttf");
     }
 
-    template<std::ranges::forward_range R>
+    template <std::ranges::forward_range R>
     std::string
     JoinPathSet(R&& input,
                 bool shuffle)
@@ -350,7 +351,7 @@ namespace {
         return {};
     }
 
-    template<typename T>
+    template <typename T>
     bool
     LoadVar(const char* key,
             T& var)
@@ -365,7 +366,7 @@ namespace {
         return true;
     }
 
-    template<typename T>
+    template <typename T>
     bool
     LoadVar(const char* key,
             T& var,
@@ -723,6 +724,7 @@ namespace {
     ScanThemesAndFonts(unsigned flags)
     {
         using std::filesystem::directory_iterator;
+        using std::filesystem::recursive_directory_iterator;
 
         DEBUG_FUNCTION_LINE_VERBOSE("scanning themes and fonts: %x", flags);
 
@@ -747,7 +749,6 @@ namespace {
                             if (!IsTTF(path))
                                 continue;
                             auto name = path.stem();
-                            // Deduplicate based on font name.
                             fonts.emplace(name, path);
                         }
                     }
@@ -760,16 +761,15 @@ namespace {
 
         if (flags & ScanFlagsFonts) {
             try {
-                // Find all manually installed fonts in SD:/wiiu/fonts/
+                // Find all fonts in SD:/wiiu/fonts/, including sub-directories.
                 if (exists(fonts_dir)) {
-                    for (const auto &entry : directory_iterator{fonts_dir}) {
+                    for (const auto &entry : recursive_directory_iterator{fonts_dir}) {
                         if (!entry.is_regular_file())
                             continue;
                         auto& path = entry.path();
                         if (!IsTTF(path))
                             continue;
                         auto name = path.stem();
-                        // Deduplicate based on font name.
                         fonts.emplace(name, path);
                     }
                 }
@@ -840,7 +840,7 @@ namespace {
         return result;
     }
 
-    template<typename T>
+    template <typename T>
     void
     StoreVar(const char* key,
              const T& var)
