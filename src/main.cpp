@@ -942,7 +942,7 @@ ConfigMenuOpenedCallback(WUPSConfigCategoryHandle rootHandle)
         auto [themes, fonts] = ScanThemesAndFonts();
 
         gThemesGroup.emplace();
-        auto themes_cat = WUPSConfigCategory::Create("Available Themes");
+        auto themes_cat = WUPSConfigCategory::Create("Available themes");
         for (const auto &theme : themes) {
             bool isEnabled = gEnabledThemes.contains(theme);
             themes_cat.add(
